@@ -26,4 +26,8 @@ pub mod token_factory {
     pub fn get_price(ctx: Context<GetPrice>) -> Result<()> {
         crate::instructions::update_price::handle_get_price(ctx)
     }
+
+    pub fn set_admin(ctx: Context<SetAdmin>, new_admin: Pubkey) -> Result<()> {
+        crate::instructions::set_admin::handle_set_admin(ctx, new_admin)
+    }
 }

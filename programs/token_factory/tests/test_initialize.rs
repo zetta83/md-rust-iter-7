@@ -59,6 +59,19 @@ fn get_price_instruction(program_id: Pubkey, oracle: Pubkey) -> Instruction {
     )
 }
 
+fn set_admin_instruction(
+    program_id: Pubkey,
+    admin: Pubkey,
+    oracle: Pubkey,
+    new_admin: Pubkey,
+) -> Instruction {
+    Instruction::new_with_bytes(
+        program_id,
+        &token_factory::instruction::SetAdmin { new_admin }.data(),
+        token_factory::accounts::SetAdmin { admin, oracle }.to_account_metas(None),
+    )
+}
+
 fn send(svm: &mut LiteSVM, payer: &Keypair, instruction: Instruction) -> Result<(), litesvm::types::FailedTransactionMetadata> {
     let blockhash = svm.latest_blockhash();
     let msg = Message::new_with_blockhash(&[instruction], Some(&payer.pubkey()), &blockhash);
@@ -205,4 +218,51 @@ fn test_update_price_wrong_admin_fails() {
 
     let oracle_state = read_oracle(&svm, oracle);
     assert_eq!(oracle_state.price, initialize_price);
+}
+
+#[test]
+fn test_set_admin() {
+    let (mut svm, program_id, admin, oracle) = setup();
+    let initialize_price: u64 = 1_000_000;
+
+    send(
+        &mut svm,
+        &admin,
+        initialize_instruction(program_id, admin.pubkey(), oracle, initialize_price),
+    )
+    .unwrap();
+
+    let new_admin = Keypair::new();
+    let instruction =
+        set_admin_instruction(program_id, admin.pubkey(), oracle, new_admin.pubkey());
+    let res = send(&mut svm, &admin, instruction);
+    assert!(res.is_ok());
+
+    let oracle_state = read_oracle(&svm, oracle);
+    assert_eq!(oracle_state.admin, new_admin.pubkey());
+}
+
+#[test]
+fn test_set_admin_wrong_admin_fails() {
+    let (mut svm, program_id, admin, oracle) = setup();
+    let initialize_price: u64 = 1_000_000;
+
+    send(
+        &mut svm,
+        &admin,
+        initialize_instruction(program_id, admin.pubkey(), oracle, initialize_price),
+    )
+    .unwrap();
+
+    let attacker = Keypair::new();
+    svm.airdrop(&attacker.pubkey(), 1_000_000_000).unwrap();
+
+    let new_admin = Keypair::new();
+    let instruction =
+        set_admin_instruction(program_id, attacker.pubkey(), oracle, new_admin.pubkey());
+    let res = send(&mut svm, &attacker, instruction);
+    assert!(res.is_err());
+
+    let oracle_state = read_oracle(&svm, oracle);
+    assert_eq!(oracle_state.admin, admin.pubkey());
 }
