@@ -29,7 +29,10 @@ pub fn handle_update_price(ctx: Context<UpdatePrice>, new_price: u64) -> Result<
     if oracle.price > 0 {
         let min = oracle.price.saturating_mul(8) / 10;
         let max = oracle.price.saturating_mul(12) / 10;
-        require!(new_price >= min && new_price <= max, ErrorCode::PriceOutOfRange);
+        require!(
+            new_price >= min && new_price <= max,
+            ErrorCode::PriceOutOfRange
+        );
     }
 
     oracle.price = new_price;
@@ -41,5 +44,22 @@ pub fn handle_update_price(ctx: Context<UpdatePrice>, new_price: u64) -> Result<
         updater: oracle.admin,
     });
 
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct GetPrice<'info> {
+    #[account(seeds = [ORACLE_SEED], bump = oracle.bump)]
+    pub oracle: Account<'info, OracleState>,
+}
+
+pub fn handle_get_price(ctx: Context<GetPrice>) -> Result<()> {
+    require!(
+        Clock::get()?
+            .slot
+            .saturating_sub(ctx.accounts.oracle.last_updated_slot)
+            <= MAX_STALENESS_SLOTS,
+        ErrorCode::StaleOracle
+    );
     Ok(())
 }

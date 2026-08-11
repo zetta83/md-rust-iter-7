@@ -51,6 +51,14 @@ fn update_price_instruction(program_id: Pubkey, admin: Pubkey, oracle: Pubkey, n
     )
 }
 
+fn get_price_instruction(program_id: Pubkey, oracle: Pubkey) -> Instruction {
+    Instruction::new_with_bytes(
+        program_id,
+        &token_factory::instruction::GetPrice {}.data(),
+        token_factory::accounts::GetPrice { oracle }.to_account_metas(None),
+    )
+}
+
 fn send(svm: &mut LiteSVM, payer: &Keypair, instruction: Instruction) -> Result<(), litesvm::types::FailedTransactionMetadata> {
     let blockhash = svm.latest_blockhash();
     let msg = Message::new_with_blockhash(&[instruction], Some(&payer.pubkey()), &blockhash);
@@ -130,6 +138,49 @@ fn test_update_price_out_of_range_fails() {
 
     let oracle_state = read_oracle(&svm, oracle);
     assert_eq!(oracle_state.price, initialize_price);
+}
+
+#[test]
+fn test_get_price_fresh() {
+    let (mut svm, program_id, admin, oracle) = setup();
+    let initialize_price: u64 = 1_000_000;
+
+    send(
+        &mut svm,
+        &admin,
+        initialize_instruction(program_id, admin.pubkey(), oracle, initialize_price),
+    )
+    .unwrap();
+
+    let reader = Keypair::new();
+    svm.airdrop(&reader.pubkey(), 1_000_000_000).unwrap();
+
+    let instruction = get_price_instruction(program_id, oracle);
+    let res = send(&mut svm, &reader, instruction);
+    assert!(res.is_ok());
+}
+
+#[test]
+fn test_get_price_stale_fails() {
+    let (mut svm, program_id, admin, oracle) = setup();
+    let initialize_price: u64 = 1_000_000;
+
+    send(
+        &mut svm,
+        &admin,
+        initialize_instruction(program_id, admin.pubkey(), oracle, initialize_price),
+    )
+    .unwrap();
+
+    let last_updated_slot = read_oracle(&svm, oracle).last_updated_slot;
+    svm.warp_to_slot(last_updated_slot + token_factory::constants::MAX_STALENESS_SLOTS + 1);
+
+    let reader = Keypair::new();
+    svm.airdrop(&reader.pubkey(), 1_000_000_000).unwrap();
+
+    let instruction = get_price_instruction(program_id, oracle);
+    let res = send(&mut svm, &reader, instruction);
+    assert!(res.is_err());
 }
 
 #[test]
