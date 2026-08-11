@@ -3,5 +3,9 @@ use anchor_lang::prelude::*;
 #[error_code]
 pub enum ErrorCode {
     #[msg("Invalid oracle price")]
-    InvalidPrice
+    InvalidPrice,
+    #[msg("Oracle price overflow")]
+    StaleOracle,
+    #[msg("Oracle price overflow")]
+    PriceOutOfRange,
 }

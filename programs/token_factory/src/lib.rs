@@ -18,4 +18,8 @@ pub mod token_factory {
     pub fn initialize(ctx: Context<InitializeOracle>, initialize_price: u64) -> Result<()> {
         crate::instructions::initialize::handle_initialize_oracle(ctx, initialize_price)
     }
+    
+    pub fn update_price(ctx: Context<UpdatePrice>, new_price: u64) -> Result<()> {
+        crate::instructions::update_price::handle_update_price(ctx, new_price)
+    }
 }
