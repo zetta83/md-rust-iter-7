@@ -5,3 +5,21 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+anchor-lang = "1.1.2"
+anyhow = "1"
+axum = "0.8"
+dotenvy = "0.15"
+rand = "0.9"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+solana-client = "3"
+solana-commitment-config = "3.1.1"
+solana-keypair = "3"
+solana-sdk = "3"
+solana-signer = "3"
+solana-transaction = { version = "3", features = ["bincode"] }
+thiserror = "2"
+token_factory = { version = "0.1.0", path = "../programs/token_factory", default-features = false, features = ["cpi"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
