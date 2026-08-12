@@ -109,13 +109,8 @@ fn test_withdraw_fees_partial() {
 fn test_withdraw_fees_full_drains_treasury() {
     let (mut svm, program_id, admin, oracle, treasury) = setup(FEES_COLLECTED);
 
-    let instruction = withdraw_fees_instruction(
-        program_id,
-        admin.pubkey(),
-        oracle,
-        treasury,
-        FEES_COLLECTED,
-    );
+    let instruction =
+        withdraw_fees_instruction(program_id, admin.pubkey(), oracle, treasury, FEES_COLLECTED);
     let res = send(&mut svm, &admin, instruction);
     assert!(res.is_ok(), "tx failed: {:?}", res.err());
 

@@ -45,7 +45,12 @@ pub mod token_factory {
         initial_supply: u64,
         fee_usd: u64,
     ) -> Result<()> {
-        crate::instructions::create_token::handle_create_token_with_fee(ctx, decimals, initial_supply, fee_usd)
+        crate::instructions::create_token::handle_create_token_with_fee(
+            ctx,
+            decimals,
+            initial_supply,
+            fee_usd,
+        )
     }
 
     pub fn withdraw_fees(ctx: Context<WithdrawFees>, amount: u64) -> Result<()> {

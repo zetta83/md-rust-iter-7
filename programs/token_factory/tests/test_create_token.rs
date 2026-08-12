@@ -75,8 +75,7 @@ fn create_token_instruction(
     decimals: u8,
     initial_supply: u64,
 ) -> Instruction {
-    let admin_ata =
-        associated_token::get_associated_token_address(&admin, &accounts.mint.pubkey());
+    let admin_ata = associated_token::get_associated_token_address(&admin, &accounts.mint.pubkey());
     Instruction::new_with_bytes(
         program_id,
         &token_factory::instruction::CreateToken {
@@ -164,13 +163,8 @@ fn test_create_token_wrong_admin_fails() {
     let attacker = Keypair::new();
     svm.airdrop(&attacker.pubkey(), 1_000_000_000).unwrap();
 
-    let instruction = create_token_instruction(
-        program_id,
-        attacker.pubkey(),
-        &accounts,
-        decimals,
-        1_000,
-    );
+    let instruction =
+        create_token_instruction(program_id, attacker.pubkey(), &accounts, decimals, 1_000);
     let res = send(&mut svm, &attacker, &[&accounts.mint], instruction);
 
     assert_anchor_error(
@@ -201,13 +195,8 @@ fn test_create_token_overflow_fails() {
     let (mut svm, program_id, admin, accounts) = setup();
     let decimals = token_factory::constants::EXPECTED_DECIMALS;
 
-    let instruction = create_token_instruction(
-        program_id,
-        admin.pubkey(),
-        &accounts,
-        decimals,
-        u64::MAX,
-    );
+    let instruction =
+        create_token_instruction(program_id, admin.pubkey(), &accounts, decimals, u64::MAX);
     let res = send(&mut svm, &admin, &[&accounts.mint], instruction);
 
     assert_anchor_error(

@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  SOLANA_VERSION: v4.1.2
+
+jobs:
+  rust:
+    name: Rust (fmt, clippy, tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        run: rustup show
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ env.SOLANA_VERSION }}
+
+      - name: Cache Solana platform-tools
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/solana
+            ~/.local/share/solana/install
+          key: solana-${{ env.SOLANA_VERSION }}-${{ runner.os }}
+
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/${{ env.SOLANA_VERSION }}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: cargo fmt --check
+        run: cargo fmt --all -- --check
+
+      - name: cargo clippy
+        run: cargo clippy --workspace --lib --bins --all-features -- -D warnings
+
+      # LiteSVM-тесты грузят скомпилированный target/deploy/token_factory.so
+      # напрямую (см. tests/test_initialize.rs), поэтому нужен build-sbf ещё
+      # до `cargo test`. anchor-cli тут не нужен: build-sbf даёт тот же .so.
+      - name: Build on-chain program (SBF)
+        run: cd programs/token_factory && cargo build-sbf
+
+      - name: cargo test --workspace
+        run: cargo test --workspace
+
+  frontend:
+    name: Frontend (typecheck + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: bun install
+        run: bun install --frozen-lockfile
+
+      - name: bun run build
+        run: bun run build

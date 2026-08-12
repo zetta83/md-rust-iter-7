@@ -138,8 +138,8 @@ fn read_oracle(svm: &LiteSVM, oracle: Pubkey) -> token_factory::state::OracleSta
 
 fn corrupt_oracle_decimals(svm: &mut LiteSVM, oracle: Pubkey, bad_decimals: u8) {
     let mut account = svm.get_account(&oracle).unwrap();
-    let mut state = token_factory::state::OracleState::try_deserialize(&mut account.data.as_slice())
-        .unwrap();
+    let mut state =
+        token_factory::state::OracleState::try_deserialize(&mut account.data.as_slice()).unwrap();
     state.decimals = bad_decimals;
 
     let mut data = Vec::new();
@@ -230,7 +230,10 @@ fn test_create_token_with_fee_stale_oracle_fails() {
     );
     let res = send(&mut svm, &payer, &[&accounts.mint], instruction);
 
-    assert_anchor_error(&res.unwrap_err(), token_factory::error::ErrorCode::StaleOracle);
+    assert_anchor_error(
+        &res.unwrap_err(),
+        token_factory::error::ErrorCode::StaleOracle,
+    );
     assert!(svm.get_account(&accounts.mint.pubkey()).is_none());
     assert!(svm.get_account(&accounts.treasury).is_none());
 }

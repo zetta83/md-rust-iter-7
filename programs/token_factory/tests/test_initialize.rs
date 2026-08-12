@@ -1,4 +1,3 @@
-
 mod common;
 
 use {
@@ -30,7 +29,12 @@ fn setup() -> (LiteSVM, Pubkey, Keypair, Pubkey) {
     (svm, program_id, admin, oracle)
 }
 
-fn initialize_instruction(program_id: Pubkey, admin: Pubkey, oracle: Pubkey, price: u64) -> Instruction {
+fn initialize_instruction(
+    program_id: Pubkey,
+    admin: Pubkey,
+    oracle: Pubkey,
+    price: u64,
+) -> Instruction {
     Instruction::new_with_bytes(
         program_id,
         &token_factory::instruction::Initialize {
@@ -46,7 +50,12 @@ fn initialize_instruction(program_id: Pubkey, admin: Pubkey, oracle: Pubkey, pri
     )
 }
 
-fn update_price_instruction(program_id: Pubkey, admin: Pubkey, oracle: Pubkey, new_price: u64) -> Instruction {
+fn update_price_instruction(
+    program_id: Pubkey,
+    admin: Pubkey,
+    oracle: Pubkey,
+    new_price: u64,
+) -> Instruction {
     Instruction::new_with_bytes(
         program_id,
         &token_factory::instruction::UpdatePrice { new_price }.data(),
@@ -75,7 +84,11 @@ fn set_admin_instruction(
     )
 }
 
-fn send(svm: &mut LiteSVM, payer: &Keypair, instruction: Instruction) -> Result<(), litesvm::types::FailedTransactionMetadata> {
+fn send(
+    svm: &mut LiteSVM,
+    payer: &Keypair,
+    instruction: Instruction,
+) -> Result<(), litesvm::types::FailedTransactionMetadata> {
     let blockhash = svm.latest_blockhash();
     let msg = Message::new_with_blockhash(&[instruction], Some(&payer.pubkey()), &blockhash);
     let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[payer]).unwrap();
@@ -100,7 +113,10 @@ fn test_initialize() {
     let oracle_state = read_oracle(&svm, oracle);
     assert_eq!(oracle_state.admin, admin.pubkey());
     assert_eq!(oracle_state.price, initialize_price);
-    assert_eq!(oracle_state.decimals, token_factory::constants::EXPECTED_DECIMALS);
+    assert_eq!(
+        oracle_state.decimals,
+        token_factory::constants::EXPECTED_DECIMALS
+    );
 }
 
 #[test]
@@ -110,7 +126,10 @@ fn test_initialize_zero_price_fails() {
     let instruction = initialize_instruction(program_id, admin.pubkey(), oracle, 0);
     let res = send(&mut svm, &admin, instruction);
 
-    assert_anchor_error(&res.unwrap_err(), token_factory::error::ErrorCode::InvalidPrice);
+    assert_anchor_error(
+        &res.unwrap_err(),
+        token_factory::error::ErrorCode::InvalidPrice,
+    );
     assert!(svm.get_account(&oracle).is_none());
 }
 
@@ -199,7 +218,10 @@ fn test_get_price_stale_fails() {
 
     let instruction = get_price_instruction(program_id, oracle);
     let res = send(&mut svm, &reader, instruction);
-    assert_anchor_error(&res.unwrap_err(), token_factory::error::ErrorCode::StaleOracle);
+    assert_anchor_error(
+        &res.unwrap_err(),
+        token_factory::error::ErrorCode::StaleOracle,
+    );
 }
 
 #[test]
@@ -242,8 +264,7 @@ fn test_set_admin() {
     .unwrap();
 
     let new_admin = Keypair::new();
-    let instruction =
-        set_admin_instruction(program_id, admin.pubkey(), oracle, new_admin.pubkey());
+    let instruction = set_admin_instruction(program_id, admin.pubkey(), oracle, new_admin.pubkey());
     let res = send(&mut svm, &admin, instruction);
     assert!(res.is_ok());
 

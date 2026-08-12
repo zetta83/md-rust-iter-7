@@ -54,8 +54,9 @@ async fn main() -> Result<()> {
             "oracle PDA {oracle} is already in use by another program ({}), expected {program_id}",
             account.owner
         );
-        let state = token_factory::state::OracleState::try_deserialize(&mut account.data.as_slice())
-            .context("oracle PDA exists but failed to decode as OracleState")?;
+        let state =
+            token_factory::state::OracleState::try_deserialize(&mut account.data.as_slice())
+                .context("oracle PDA exists but failed to decode as OracleState")?;
         eprintln!(
             "oracle already initialized: admin={} price={} decimals={}",
             state.admin, state.price, state.decimals
