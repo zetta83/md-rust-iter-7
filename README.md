@@ -59,12 +59,10 @@ PDA `OracleState` (`admin`, `price`, `decimals`, `last_updated_slot`) обнов
 
 ## Devnet
 
-_Заполняется после деплоя в Devnet (см. `TODO.md`, шаг 2)._
-
-- Program ID: `TODO`
-- PDA оракула (`OracleState`): `TODO`
-- PDA казны (`treasury`): `TODO`
+- Program ID: `9VptbChe2mPw3fkmcnKxCShNmagw4F8YvNX3BzSrPKQF`
+- PDA оракула (`OracleState`): `6HKWookZh7eWrBWo9vvp5RUYCHNTSWkKMkfN8QDFNHLB`
+- PDA казны (`treasury`): `H7J6HW2iNAaXDTLu9VrKxend92uFWwSwTX956nyTVj9W`
 - Ссылки на успешные транзакции создания токенов:
-  1. `TODO`
-  2. `TODO`
-  3. `TODO`
+  1. `5xW8YwHJLJjHi1N8bJyDrLFgsPEtDDV4cpsGN3XhpuaqwEqRs7d5ewUhB4rvYtVpLjbSXmT5PBBMNguTwNpUoNtB`
+  2. `zcCXQ2hRWFRqwFDPuNgfEhkjiZxm7LutPmshhaDmpSnizY6fwjL6mjb3PyVHms1vdjsWsRNLxcWCjq45XuveNqb`
+  3. `FpnMtzciNfLKkbTbZPUBtSc34G3GNj9ie1b62mTX5gYWMwUGZzaeHuPGEV1q4T1dMRhtt36vC2GC6zFgXbY5W68`
