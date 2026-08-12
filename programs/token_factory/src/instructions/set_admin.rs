@@ -1,5 +1,5 @@
-use anchor_lang::prelude::*;
 use crate::{OracleState, ORACLE_SEED};
+use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 #[instruction(new_admin: Pubkey)]

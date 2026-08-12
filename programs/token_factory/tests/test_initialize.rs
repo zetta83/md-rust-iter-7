@@ -1,10 +1,13 @@
 
+mod common;
+
 use {
     anchor_lang::{
         prelude::Pubkey,
         solana_program::{instruction::Instruction, system_program},
         AccountDeserialize, InstructionData, ToAccountMetas,
     },
+    common::assert_anchor_error,
     litesvm::LiteSVM,
     solana_keypair::Keypair,
     solana_message::{Message, VersionedMessage},
@@ -107,7 +110,7 @@ fn test_initialize_zero_price_fails() {
     let instruction = initialize_instruction(program_id, admin.pubkey(), oracle, 0);
     let res = send(&mut svm, &admin, instruction);
 
-    assert!(res.is_err());
+    assert_anchor_error(&res.unwrap_err(), token_factory::error::ErrorCode::InvalidPrice);
     assert!(svm.get_account(&oracle).is_none());
 }
 
@@ -115,7 +118,7 @@ fn test_initialize_zero_price_fails() {
 fn test_update_price() {
     let (mut svm, program_id, admin, oracle) = setup();
     let initialize_price: u64 = 1_000_000;
-    let new_price: u64 = 1_100_000; // within [80%, 120%] of initialize_price
+    let new_price: u64 = 1_100_000;
 
     send(
         &mut svm,
@@ -147,7 +150,10 @@ fn test_update_price_out_of_range_fails() {
 
     let instruction = update_price_instruction(program_id, admin.pubkey(), oracle, new_price);
     let res = send(&mut svm, &admin, instruction);
-    assert!(res.is_err());
+    assert_anchor_error(
+        &res.unwrap_err(),
+        token_factory::error::ErrorCode::PriceOutOfRange,
+    );
 
     let oracle_state = read_oracle(&svm, oracle);
     assert_eq!(oracle_state.price, initialize_price);
@@ -193,7 +199,7 @@ fn test_get_price_stale_fails() {
 
     let instruction = get_price_instruction(program_id, oracle);
     let res = send(&mut svm, &reader, instruction);
-    assert!(res.is_err());
+    assert_anchor_error(&res.unwrap_err(), token_factory::error::ErrorCode::StaleOracle);
 }
 
 #[test]
@@ -214,7 +220,10 @@ fn test_update_price_wrong_admin_fails() {
 
     let instruction = update_price_instruction(program_id, attacker.pubkey(), oracle, new_price);
     let res = send(&mut svm, &attacker, instruction);
-    assert!(res.is_err());
+    assert_anchor_error(
+        &res.unwrap_err(),
+        anchor_lang::error::ErrorCode::ConstraintHasOne,
+    );
 
     let oracle_state = read_oracle(&svm, oracle);
     assert_eq!(oracle_state.price, initialize_price);
@@ -261,7 +270,10 @@ fn test_set_admin_wrong_admin_fails() {
     let instruction =
         set_admin_instruction(program_id, attacker.pubkey(), oracle, new_admin.pubkey());
     let res = send(&mut svm, &attacker, instruction);
-    assert!(res.is_err());
+    assert_anchor_error(
+        &res.unwrap_err(),
+        anchor_lang::error::ErrorCode::ConstraintHasOne,
+    );
 
     let oracle_state = read_oracle(&svm, oracle);
     assert_eq!(oracle_state.admin, admin.pubkey());

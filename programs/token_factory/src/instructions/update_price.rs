@@ -54,11 +54,12 @@ pub struct GetPrice<'info> {
 }
 
 pub fn handle_get_price(ctx: Context<GetPrice>) -> Result<()> {
+    require_fresh(&ctx.accounts.oracle)
+}
+
+pub fn require_fresh(oracle: &OracleState) -> Result<()> {
     require!(
-        Clock::get()?
-            .slot
-            .saturating_sub(ctx.accounts.oracle.last_updated_slot)
-            <= MAX_STALENESS_SLOTS,
+        Clock::get()?.slot.saturating_sub(oracle.last_updated_slot) <= MAX_STALENESS_SLOTS,
         ErrorCode::StaleOracle
     );
     Ok(())

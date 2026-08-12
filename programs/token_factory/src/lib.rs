@@ -30,4 +30,25 @@ pub mod token_factory {
     pub fn set_admin(ctx: Context<SetAdmin>, new_admin: Pubkey) -> Result<()> {
         crate::instructions::set_admin::handle_set_admin(ctx, new_admin)
     }
+
+    pub fn create_token(
+        ctx: Context<CreateToken>,
+        decimals: u8,
+        initial_supply: u64,
+    ) -> Result<()> {
+        crate::instructions::create_token::handle_create_token(ctx, decimals, initial_supply)
+    }
+
+    pub fn create_token_with_fee(
+        ctx: Context<CreateTokenWithFee>,
+        decimals: u8,
+        initial_supply: u64,
+        fee_usd: u64,
+    ) -> Result<()> {
+        crate::instructions::create_token::handle_create_token_with_fee(ctx, decimals, initial_supply, fee_usd)
+    }
+
+    pub fn withdraw_fees(ctx: Context<WithdrawFees>, amount: u64) -> Result<()> {
+        crate::instructions::withdraw_fees::handle_withdraw_fees(ctx, amount)
+    }
 }
