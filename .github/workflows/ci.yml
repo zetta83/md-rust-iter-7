@@ -7,10 +7,13 @@ on:
 
 env:
   SOLANA_VERSION: v4.1.2
+  # anchor-cli 1.1.2 (solana-foundation/anchor) — не опубликован на crates.io,
+  # ставим из исходников по тегу, как это делает homebrew-формула "anchor".
+  ANCHOR_VERSION: v1.1.2
 
 jobs:
   rust:
-    name: Rust (fmt, clippy, tests)
+    name: Rust (fmt, clippy, tests, anchor build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,7 +23,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ env.SOLANA_VERSION }}
+          key: ${{ env.SOLANA_VERSION }}-${{ env.ANCHOR_VERSION }}
 
       - name: Cache Solana platform-tools
         uses: actions/cache@v4
@@ -30,10 +33,37 @@ jobs:
             ~/.local/share/solana/install
           key: solana-${{ env.SOLANA_VERSION }}-${{ runner.os }}
 
+      # Скачивание release-тарбола с GitHub иногда флапает на раннерах — ретраим.
       - name: Install Solana CLI
-        run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/${{ env.SOLANA_VERSION }}/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 5
+          max_attempts: 3
+          command: sh -c "$(curl -sSfL https://release.anza.xyz/${{ env.SOLANA_VERSION }}/install)"
+
+      - name: Add Solana CLI to PATH
+        run: echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Cache anchor-cli binary
+        id: anchor-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/anchor
+          key: anchor-cli-${{ env.ANCHOR_VERSION }}-${{ runner.os }}
+
+      - name: Install system deps for anchor-cli build
+        if: steps.anchor-cache.outputs.cache-hit != 'true'
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev pkg-config
+
+      # Собирается из исходников (нет на crates.io) — долго на первый раз (~5-10
+      # мин), дальше берётся из кэша по ключу версии.
+      - name: Install anchor-cli
+        if: steps.anchor-cache.outputs.cache-hit != 'true'
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 20
+          max_attempts: 2
+          command: cargo install --git https://github.com/solana-foundation/anchor --tag ${{ env.ANCHOR_VERSION }} anchor-cli --locked --no-default-features
 
       - name: cargo fmt --check
         run: cargo fmt --all -- --check
@@ -41,23 +71,43 @@ jobs:
       - name: cargo clippy
         run: cargo clippy --workspace --lib --bins --all-features -- -D warnings
 
-      # LiteSVM-тесты грузят скомпилированный target/deploy/token_factory.so
-      # напрямую (см. tests/test_initialize.rs), поэтому нужен build-sbf ещё
-      # до `cargo test`. anchor-cli тут не нужен: build-sbf даёт тот же .so.
-      - name: Build on-chain program (SBF)
-        run: cd programs/token_factory && cargo build-sbf
+      # anchor build компилирует программу (SBF) и генерит target/idl +
+      # target/types, которые напрямую импортирует frontend (см.
+      # frontend/src/lib/instructions.ts). Скачивание SBF platform-tools
+      # с GitHub Releases иногда флапает на раннерах — ретраим шаг целиком.
+      - name: anchor build
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 15
+          max_attempts: 3
+          command: anchor build
 
       - name: cargo test --workspace
         run: cargo test --workspace
 
+      - name: Upload IDL/types for frontend
+        uses: actions/upload-artifact@v4
+        with:
+          name: anchor-idl
+          path: |
+            target/idl
+            target/types
+          retention-days: 1
+
   frontend:
     name: Frontend (typecheck + build)
     runs-on: ubuntu-latest
+    needs: rust
     defaults:
       run:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: anchor-idl
+          path: target
 
       - uses: oven-sh/setup-bun@v2
         with:
