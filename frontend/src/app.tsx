@@ -87,7 +87,7 @@ export function App() {
           payer: wallet,
           decimals: EXPECTED_DECIMALS,
           initialSupply: BigInt(initialSupply),
-          feeUsd: BigInt(feeUsd),
+          feeUsd: BigInt(feeUsd) * 10n ** BigInt(EXPECTED_DECIMALS),
         })
 
         const { signature } = await solana.signAndSendTransaction(transaction)

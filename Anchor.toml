@@ -7,7 +7,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-token_factory = "45uvftn89ifwzk47sg2Q1W2HFjtDyMNtxFbHnokL8sKn"
+token_factory = "9VptbChe2mPw3fkmcnKxCShNmagw4F8YvNX3BzSrPKQF"
 
 [provider]
 cluster = "localnet"

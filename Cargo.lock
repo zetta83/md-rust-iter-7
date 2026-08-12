@@ -2379,6 +2379,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "init_oracle"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anyhow",
+ "solana-client",
+ "solana-commitment-config",
+ "solana-keypair",
+ "solana-sdk",
+ "solana-signer",
+ "solana-transaction",
+ "token_factory",
+ "tokio",
+]
+
+[[package]]
 name = "inout"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"

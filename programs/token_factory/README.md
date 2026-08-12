@@ -5,7 +5,7 @@
 фабрику SPL-токенов, которая чеканит новые токены бесплатно либо за комиссию в
 USD (конвертируется в SOL по цене оракула и собирается в казначейство-PDA).
 
-- Program id: `45uvftn89ifwzk47sg2Q1W2HFjtDyMNtxFbHnokL8sKn`
+- Program id: `9VptbChe2mPw3fkmcnKxCShNmagw4F8YvNX3BzSrPKQF`
 - Имя крейта / программы: `token_factory`
 
 ## Структура
