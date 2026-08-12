@@ -1,104 +1,194 @@
-import { useState } from 'preact/hooks'
-import preactLogo from './assets/preact.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
+import { useCallback, useEffect, useState } from 'preact/hooks'
+import { PublicKey } from '@solana/web3.js'
+import { AddressType, useAccounts, useConnect, useDisconnect, useIsExtensionInstalled, useSolana } from '@phantom/react-sdk'
+
 import './app.css'
+import { fetchHealth, fetchOracle, type OracleResponse } from './lib/backend'
+import { RPC_URL, EXPECTED_DECIMALS } from './lib/constants'
+import { buildCreateTokenWithFeeTx } from './lib/instructions'
+
+function explorerTxUrl(signature: string): string {
+  if (RPC_URL.includes('devnet')) return `https://explorer.solana.com/tx/${signature}?cluster=devnet`
+  if (RPC_URL.includes('mainnet')) return `https://explorer.solana.com/tx/${signature}`
+  return `https://explorer.solana.com/tx/${signature}?cluster=custom&customUrl=${encodeURIComponent(RPC_URL)}`
+}
+
+function shorten(address: string): string {
+  return `${address.slice(0, 4)}…${address.slice(-4)}`
+}
+
+interface CreateResult {
+  signature: string
+  mint: string
+}
 
 export function App() {
-  const [count, setCount] = useState(0)
+  const { isInstalled } = useIsExtensionInstalled()
+  const { connect, isConnecting } = useConnect()
+  const { disconnect } = useDisconnect()
+  const { solana, isAvailable } = useSolana()
+  const addresses = useAccounts()
+
+  const walletAddress = addresses?.find((a) => a.addressType === AddressType.solana)?.address
+  const wallet = walletAddress ? new PublicKey(walletAddress) : null
+
+  const [oracle, setOracle] = useState<OracleResponse | null>(null)
+  const [oracleError, setOracleError] = useState<string | null>(null)
+  const [backendOk, setBackendOk] = useState<boolean | null>(null)
+  const [oracleLoading, setOracleLoading] = useState(false)
+
+  const [initialSupply, setInitialSupply] = useState('1000')
+  const [feeUsd, setFeeUsd] = useState('1')
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [createResult, setCreateResult] = useState<CreateResult | null>(null)
+
+  const refreshOracle = useCallback(async () => {
+    setOracleLoading(true)
+    setOracleError(null)
+    try {
+      await fetchHealth()
+      setBackendOk(true)
+      setOracle(await fetchOracle())
+    } catch (err) {
+      setBackendOk((prev) => prev ?? false)
+      setOracleError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setOracleLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    refreshOracle()
+  }, [refreshOracle])
+
+  const connectWallet = useCallback(async () => {
+    if (!isInstalled) {
+      window.open('https://phantom.app/', '_blank')
+      return
+    }
+    try {
+      await connect({ provider: 'injected' })
+    } catch {
+      // user closed the Phantom popup — nothing to do
+    }
+  }, [connect, isInstalled])
+
+  const createToken = useCallback(
+    async (e: Event) => {
+      e.preventDefault()
+      if (!wallet || !isAvailable) return
+
+      setCreating(true)
+      setCreateError(null)
+      setCreateResult(null)
+      try {
+        const { transaction, mint } = await buildCreateTokenWithFeeTx({
+          payer: wallet,
+          decimals: EXPECTED_DECIMALS,
+          initialSupply: BigInt(initialSupply),
+          feeUsd: BigInt(feeUsd),
+        })
+
+        const { signature } = await solana.signAndSendTransaction(transaction)
+
+        setCreateResult({ signature, mint: mint.publicKey.toBase58() })
+        refreshOracle()
+      } catch (err) {
+        setCreateError(err instanceof Error ? err.message : String(err))
+      } finally {
+        setCreating(false)
+      }
+    },
+    [wallet, isAvailable, solana, initialSupply, feeUsd, refreshOracle],
+  )
 
   return (
-    <>
-      <section id="center">
-        <div class="hero">
-          <img src={heroImg} class="base" width="170" height="179" alt="" />
-          <img src={preactLogo} class="framework" alt="Preact logo" />
-          <img src={viteLogo} class="vite" alt="Vite logo" />
+    <div id="page">
+      <header>
+        <h1>Mini-Launchpad</h1>
+        {wallet ? (
+          <button type="button" class="wallet-btn connected" onClick={() => disconnect()}>
+            {shorten(wallet.toBase58())} · disconnect
+          </button>
+        ) : (
+          <button type="button" class="wallet-btn" onClick={connectWallet} disabled={isConnecting}>
+            {isConnecting ? 'Connecting…' : isInstalled ? 'Connect Phantom' : 'Install Phantom'}
+          </button>
+        )}
+      </header>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Oracle (front → back → token_factory)</h2>
+          <button type="button" class="ghost-btn" onClick={refreshOracle} disabled={oracleLoading}>
+            {oracleLoading ? 'Refreshing…' : 'Refresh'}
+          </button>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/app.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          class="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
+        <p class="muted">
+          Backend: {backendOk === null ? '…' : backendOk ? 'reachable' : 'unreachable'}
+        </p>
+        {oracleError && <p class="error">{oracleError}</p>}
+        {oracle && (
+          <dl class="kv">
+            <dt>Price</dt>
+            <dd>
+              {(oracle.price / 10 ** oracle.decimals).toFixed(oracle.decimals)} ({oracle.decimals} decimals)
+            </dd>
+            <dt>Admin</dt>
+            <dd>{oracle.admin}</dd>
+            <dt>Last updated slot</dt>
+            <dd>{oracle.last_updated_slot}</dd>
+            <dt>Stale</dt>
+            <dd class={oracle.is_stale ? 'error' : ''}>{oracle.is_stale ? 'yes' : 'no'}</dd>
+          </dl>
+        )}
       </section>
 
-      <div class="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg class="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img class="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://preactjs.com/" target="_blank">
-                <img class="button-icon" src={preactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      <section class="card">
+        <div class="card-head">
+          <h2>Create token (front → token_factory)</h2>
         </div>
-        <div id="social">
-          <svg class="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg class="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
+        <form onSubmit={createToken}>
+          <label>
+            Initial supply
+            <input
+              type="number"
+              min="1"
+              value={initialSupply}
+              onInput={(e) => setInitialSupply((e.target as HTMLInputElement).value)}
+              required
+            />
+          </label>
+          <label>
+            Fee (USD)
+            <input
+              type="number"
+              min="1"
+              value={feeUsd}
+              onInput={(e) => setFeeUsd((e.target as HTMLInputElement).value)}
+              required
+            />
+          </label>
+          <button type="submit" class="wallet-btn" disabled={!wallet || creating}>
+            {creating ? 'Creating…' : 'Create token'}
+          </button>
+          {!wallet && <p class="muted">Connect Phantom to create a token.</p>}
+        </form>
+        {createError && <p class="error">{createError}</p>}
+        {createResult && (
+          <dl class="kv">
+            <dt>Mint</dt>
+            <dd>{createResult.mint}</dd>
+            <dt>Signature</dt>
+            <dd>
+              <a href={explorerTxUrl(createResult.signature)} target="_blank" rel="noreferrer">
+                {shorten(createResult.signature)}
               </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg class="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg class="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg class="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
+            </dd>
+          </dl>
+        )}
       </section>
-
-      <div class="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    </div>
   )
 }

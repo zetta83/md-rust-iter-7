@@ -21,5 +21,6 @@ solana-transaction = { version = "3", features = ["bincode"] }
 thiserror = "2"
 token_factory = { version = "0.1.0", path = "../programs/token_factory", default-features = false, features = ["cpi"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+tower-http = { version = "0.6", features = ["cors"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

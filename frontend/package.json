@@ -9,6 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@coral-xyz/anchor": "^0.32.1",
+    "@phantom/browser-sdk": "^2.0.2",
+    "@phantom/react-sdk": "^2.0.2",
+    "@solana/web3.js": "^1.98.4",
+    "buffer": "^6.0.3",
     "preact": "^10.29.7"
   },
   "devDependencies": {
