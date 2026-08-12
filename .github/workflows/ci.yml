@@ -55,6 +55,13 @@ jobs:
         if: steps.anchor-cache.outputs.cache-hit != 'true'
         run: sudo apt-get update && sudo apt-get install -y libudev-dev pkg-config
 
+      # anchor-cli тянет зависимости, которым нужен rustc новее нашего
+      # запиненного 1.89.0 (rust-toolchain.toml активен в этой директории) —
+      # собираем явно на stable, не трогая пин для остального кода.
+      - name: Install stable Rust toolchain (for anchor-cli build)
+        if: steps.anchor-cache.outputs.cache-hit != 'true'
+        run: rustup toolchain install stable --profile minimal
+
       # Собирается из исходников (нет на crates.io) — долго на первый раз (~5-10
       # мин), дальше берётся из кэша по ключу версии.
       - name: Install anchor-cli
@@ -63,7 +70,7 @@ jobs:
         with:
           timeout_minutes: 20
           max_attempts: 2
-          command: cargo install --git https://github.com/solana-foundation/anchor --tag ${{ env.ANCHOR_VERSION }} anchor-cli --locked --no-default-features
+          command: cargo +stable install --git https://github.com/solana-foundation/anchor --tag ${{ env.ANCHOR_VERSION }} anchor-cli --locked --no-default-features
 
       - name: cargo fmt --check
         run: cargo fmt --all -- --check
